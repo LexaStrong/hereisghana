@@ -83,11 +83,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 const title = btn.getAttribute('data-title');
                 const img = btn.getAttribute('data-img');
                 const desc = btn.getAttribute('data-desc');
+                const fullDetails = btn.querySelector('.tour-full-details');
                 
-                if (detailsTitle) detailsTitle.textContent = title;
-                if (detailsImg) detailsImg.src = img;
-                if (detailsDesc) detailsDesc.textContent = desc;
-                if (detailsBookBtn) detailsBookBtn.setAttribute('data-activity', title);
+                const modalBody = detailsModal.querySelector('.details-modal-body');
+                
+                if (fullDetails) {
+                    modalBody.innerHTML = fullDetails.innerHTML;
+                    if (detailsImg) detailsImg.src = img || '';
+                    
+                    // Re-bind booking buttons
+                    const injectedBtns = modalBody.querySelectorAll('.open-booking-modal');
+                    injectedBtns.forEach(b => {
+                        b.addEventListener('click', (ev) => {
+                            ev.preventDefault();
+                            const act = b.getAttribute('data-activity') || title;
+                            const modalActivityInput = document.getElementById('modalActivity');
+                            if (modalActivityInput) modalActivityInput.value = act;
+                            detailsModal.style.display = 'none';
+                            const bookingModal = document.getElementById('bookingModal');
+                            if (bookingModal) bookingModal.style.display = 'block';
+                        });
+                    });
+                } else {
+                    modalBody.innerHTML = `
+                        <h2 class="details-title">${title}</h2>
+                        <p class="details-desc">${desc}</p>
+                        <button class="btn btn-primary open-booking-modal" data-activity="${title}" style="width: 100%;">BOOK THIS EXPERIENCE</button>
+                    `;
+                    if (detailsImg) detailsImg.src = img || '';
+                    
+                    const bookBtn = modalBody.querySelector('.open-booking-modal');
+                    if (bookBtn) {
+                        bookBtn.addEventListener('click', (ev) => {
+                            ev.preventDefault();
+                            const modalActivityInput = document.getElementById('modalActivity');
+                            if (modalActivityInput) modalActivityInput.value = title;
+                            detailsModal.style.display = 'none';
+                            const bookingModal = document.getElementById('bookingModal');
+                            if (bookingModal) bookingModal.style.display = 'block';
+                        });
+                    }
+                }
                 
                 detailsModal.style.display = 'block';
             });
@@ -111,64 +147,94 @@ document.addEventListener('DOMContentLoaded', () => {
                 detailsModal.style.display = 'none';
             });
         }
-    } // <-- Added missing brace
+    }
 
     // Testimonial Slider Logic
     const testimonialItems = document.querySelectorAll('.testimonial-item');
-    const dots = document.querySelectorAll('.testimonial-text .dot');
-    const prevBtn = document.getElementById('prevTestimonial');
-    const nextBtn = document.getElementById('nextTestimonial');
-    
-    if (testimonialItems.length > 0) {
-        let currentSlide = 0;
+    const dots = document.querySelectorAll('.dot');
+    const prevBtn = document.querySelector('.carousel-btn.prev');
+    const nextBtn = document.querySelector('.carousel-btn.next');
+    let currentTestimonial = 0;
+    let testimonialInterval;
 
-        const showSlide = (index) => {
+    if (testimonialItems.length > 0) {
+        const showTestimonial = (index) => {
             testimonialItems.forEach(item => item.classList.remove('active'));
             dots.forEach(dot => dot.classList.remove('active'));
             
             testimonialItems[index].classList.add('active');
             dots[index].classList.add('active');
-            currentSlide = index;
         };
 
-        if (prevBtn && nextBtn) {
-            prevBtn.addEventListener('click', () => {
-                let newIndex = currentSlide - 1;
-                if (newIndex < 0) newIndex = testimonialItems.length - 1;
-                showSlide(newIndex);
-            });
+        const nextTestimonial = () => {
+            currentTestimonial = (currentTestimonial + 1) % testimonialItems.length;
+            showTestimonial(currentTestimonial);
+        };
 
+        const prevTestimonialFunc = () => {
+            currentTestimonial = (currentTestimonial - 1 + testimonialItems.length) % testimonialItems.length;
+            showTestimonial(currentTestimonial);
+        };
+
+        const startSlider = () => {
+            testimonialInterval = setInterval(nextTestimonial, 3000);
+        };
+
+        const stopSlider = () => {
+            clearInterval(testimonialInterval);
+        };
+
+        if (nextBtn) {
             nextBtn.addEventListener('click', () => {
-                let newIndex = currentSlide + 1;
-                if (newIndex >= testimonialItems.length) newIndex = 0;
-                showSlide(newIndex);
+                stopSlider();
+                nextTestimonial();
+                startSlider();
+            });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                stopSlider();
+                prevTestimonialFunc();
+                startSlider();
             });
         }
 
         dots.forEach((dot, index) => {
             dot.addEventListener('click', () => {
-                showSlide(index);
-                resetInterval();
+                stopSlider();
+                currentTestimonial = index;
+                showTestimonial(currentTestimonial);
+                startSlider();
             });
         });
 
-        // 3s Auto Slideshow
-        let slideInterval;
-        
-        const startInterval = () => {
-            slideInterval = setInterval(() => {
-                if (nextBtn) nextBtn.click();
-            }, 3000);
-        };
-
-        const resetInterval = () => {
-            clearInterval(slideInterval);
-            startInterval();
-        };
-
-        startInterval();
-        
-        if (prevBtn) prevBtn.addEventListener('click', resetInterval);
-        if (nextBtn) nextBtn.addEventListener('click', resetInterval);
+        startSlider();
     }
+
+    // Explore Page "Show More" Mobile Logic
+    const exploreGrid = document.querySelector('.ta-grid');
+    // Ensure this is the explore page (which has 30 items)
+    if (exploreGrid && exploreGrid.children.length > 6 && window.location.pathname.includes('explore')) {
+        exploreGrid.classList.add('mobile-collapsed');
+        
+        const showMoreContainer = document.createElement('div');
+        showMoreContainer.className = 'show-more-container';
+        showMoreContainer.style.textAlign = 'center';
+        showMoreContainer.style.marginTop = '30px';
+        
+        const showMoreBtn = document.createElement('button');
+        showMoreBtn.className = 'btn btn-outline show-more-btn';
+        showMoreBtn.textContent = 'Show More Attractions';
+        showMoreBtn.style.width = '100%';
+        
+        showMoreContainer.appendChild(showMoreBtn);
+        exploreGrid.parentNode.insertBefore(showMoreContainer, exploreGrid.nextSibling);
+        
+        showMoreBtn.addEventListener('click', () => {
+            exploreGrid.classList.remove('mobile-collapsed');
+            showMoreContainer.style.display = 'none';
+        });
+    }
+
 });
